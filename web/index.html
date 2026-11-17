@@ -107,6 +107,7 @@
       color: var(--dim); text-transform: uppercase; cursor: default;
     }
     .badge.live { color: #86efac; border-color: rgba(134,239,172,0.25); background: rgba(52,211,153,0.08); }
+    .badge.pending { color: #fcd34d; border-color: rgba(252,211,77,0.25); background: rgba(252,211,77,0.08); }
     .badge.demo { color: #c7c9fb; border-color: rgba(124,127,242,0.25); background: rgba(124,127,242,0.08); cursor: pointer; }
 
     /* pages */
@@ -682,6 +683,10 @@
       color: #15803d; border-color: rgba(21, 128, 61, 0.25);
       background: rgba(21, 128, 61, 0.08);
     }
+    html[data-theme="light"] .badge.pending {
+      color: #92400e; border-color: rgba(146, 64, 14, 0.25);
+      background: rgba(146, 64, 14, 0.08);
+    }
     html[data-theme="light"] .badge.demo {
       color: #4f46e5; border-color: rgba(79, 70, 229, 0.25);
       background: rgba(79, 70, 229, 0.08);
@@ -715,7 +720,7 @@
       </div>
       <div class="nav-extra">
         <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">☾</button>
-        <span id="mode" class="badge">…</span>
+        <span id="mode" class="badge" role="status" title="Checking API configuration…">API Status</span>
       </div>
     </div>
   </nav>
@@ -831,7 +836,7 @@
     <div class="wrap" style="padding-top:76px; padding-bottom:100px;">
       <div class="section-head">
         <h2>Generate Your Comic</h2>
-        <p id="modeHint">Paste your novel text, pick a format, and generate</p>
+        <p id="modeHint">Turn novel text into comic pages or a webtoon — your creative helper for audience growth and revenue.</p>
       </div>
 
       <div class="generator-wrap">
@@ -1464,10 +1469,16 @@
       try {
         const r = await fetch("/api/health");
         if (r.ok) {
+          const health = await r.json();
+          if (health.ok !== true) throw new Error("Invalid health response");
           mode = "live";
-          el.textContent = "Local";
-          el.className = "badge live";
-          $("modeHint").textContent = "Connected to local backend — paste your novel text to generate";
+          el.textContent = "API Status";
+          el.className = health.key === true ? "badge live" : "badge pending";
+          el.title = health.key === true
+            ? "API credentials configured; model connectivity has not been tested."
+            : "API credentials incomplete. Configure the model service before generating.";
+          el.setAttribute("aria-label", el.title);
+          $("modeHint").textContent = "Turn novel text into comic pages or a webtoon — your creative helper for audience growth and revenue.";
           await restoreActiveJobIfAny();
           return;
         }
@@ -1476,8 +1487,10 @@
         console.warn("Local backend not reachable:", e);
       }
       mode = "demo";
-      el.textContent = "Demo";
+      el.textContent = "API Status";
       el.className = "badge demo";
+      el.title = "API service unavailable. Showing the demo.";
+      el.setAttribute("aria-label", el.title);
       const loc = window.location.href;
       if (loc.startsWith("file:")) {
         $("modeHint").innerHTML = `Demo mode: open <code>http://127.0.0.1:8000/</code> instead of the local file to use the real generator`;
