@@ -4,6 +4,10 @@ sorvflow 由伍六柒爱电校园维护。网站已更新品牌标识、页脚�
 
 本地源码来自 [phaethix/inkstone](https://github.com/phaethix/inkstone)，保留原项目 MIT 协议和上游远程地址 `origin`。本次基于提交 `c9f3beea13a1367a96fea16bcd0a0d18b2ca0bb6`，在 `feat/zh-cn-ui` 分支添加界面汉化。
 
+发布仓库为 [SorvFlow/manhua-11-18](https://github.com/SorvFlow/manhua-11-18)，默认分支为 `主要的`。本地远程 `sorvflow` 指向发布仓库，`origin` 继续指向上游，便于跟进更新。
+
+源码沿用 [MIT 许可](LICENSE)。发布仓库初始化提交中的 Apache 2.0 文本原样保存在 [LICENSE-APACHE](LICENSE-APACHE)，作为初始化文件保留；本次没有将上游源码重新授权。
+
 ## 使用
 
 当前预览地址：<http://127.0.0.1:8765>。仅本机访问。
