@@ -1,0 +1,6 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="sorvflow logo">
+  <title>sorvflow</title>
+  <desc>A flowing S mark for the sorvflow comic studio.</desc>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#FAFAFC"/>
+  <path d="M44 20H29C21 20 18 24 20 29C22 34 40 30 43 36C46 42 41 46 34 46H19" stroke="#18181F" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

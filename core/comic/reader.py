@@ -84,7 +84,7 @@ def _document(groups: list[tuple[str, list[str]]]) -> str:
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>Inkstone reader</title>
+<title>sorvflow · 漫画阅读</title>
 <style>
 body {{ margin: 0; background: #111; color: #eee; font-family: sans-serif; }}
 nav {{ display: flex; gap: 8px; flex-wrap: wrap; padding: 8px; }}

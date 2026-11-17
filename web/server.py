@@ -1374,6 +1374,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/" or self.path == "/index.html":
             self._send_file(Path(__file__).resolve().parent / "index.html")
             return
+        if self.path in ("/i18n.js", "/locales/zh-CN.js"):
+            self._send_file(Path(__file__).resolve().parent / self.path.lstrip("/"))
+            return
         if self.path == "/api/health":
             self._send_json({"ok": True, "key": _providers_configured()})
             return

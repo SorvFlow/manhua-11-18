@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inkstone — Turn Novels Into Comics</title>
+  <link rel="icon" type="image/svg+xml" href="assets/sorvflow.svg" />
+  <title>sorvflow — Turn Novels Into Comics</title>
   <style>
     :root {
       --bg: #060608;
@@ -107,9 +108,6 @@
     }
     .badge.live { color: #86efac; border-color: rgba(134,239,172,0.25); background: rgba(52,211,153,0.08); }
     .badge.demo { color: #c7c9fb; border-color: rgba(124,127,242,0.25); background: rgba(124,127,242,0.08); cursor: pointer; }
-    .github-link { color: var(--muted); display: flex; align-items: center; transition: color .2s; }
-    .github-link:hover { color: var(--text); }
-    .github-link svg { width: 19px; height: 19px; }
 
     /* pages */
     .page { display: none; }
@@ -419,8 +417,6 @@
 
     /* footer */
     footer { text-align: center; padding: 64px 0 90px; color: var(--dim); font-size: 12px; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
 
     .error {
       margin-top: 16px; padding: 12px 16px; border-radius: 12px;
@@ -707,8 +703,8 @@
   <nav>
     <div class="wrap nav-inner">
       <a class="nav-brand" onclick="showTab('home')" style="cursor:pointer;text-decoration:none;color:inherit;">
-        <img src="assets/logo.svg" alt="Inkstone" />
-        <span>Inkstone</span>
+        <img src="assets/sorvflow.svg" alt="sorvflow" />
+        <span>sorvflow</span>
       </a>
       <div class="tab-bar" id="tabBar">
         <div class="tab-slider" id="tabSlider"></div>
@@ -720,9 +716,6 @@
       <div class="nav-extra">
         <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">☾</button>
         <span id="mode" class="badge">…</span>
-        <a class="github-link" href="https://github.com/phaethix/inkstone" target="_blank" rel="noreferrer" aria-label="GitHub">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
-        </a>
       </div>
     </div>
   </nav>
@@ -731,9 +724,9 @@
   <section id="page-home" class="page active">
     <div class="wrap">
       <header class="hero">
-        <div class="eyebrow"><span class="dot-live"></span>Free Agnes API · No GPU · Open Source · Powered by <a href="https://agnes-ai.com" target="_blank" rel="noreferrer" style="color:inherit;text-decoration:underline;">Agnes</a></div>
+        <div class="eyebrow"><span class="dot-live"></span>Create comics from your stories</div>
         <h1>Turn Novels Into <span class="grad">Comics</span></h1>
-        <p>Paste a Chinese novel and Inkstone automatically extracts characters, plans panels, and generates a webtoon or paged comic.</p>
+        <p>Paste a Chinese novel and sorvflow automatically extracts characters, plans panels, and generates a webtoon or paged comic.</p>
         <div class="hero-actions">
           <button class="btn btn-primary" onclick="showTab('generate')">Start Generating →</button>
           <button class="btn btn-secondary" onclick="showTab('effect')">See Examples</button>
@@ -759,7 +752,7 @@
         </div>
         <div class="mini-feature">
           <h3>L2 — Reference img2img</h3>
-          <p>Character portraits plus the previous panel feed Agnes as multi-image references, helping keep cross-panel consistency.</p>
+          <p>Character portraits plus the previous panel provide multi-image references, helping keep cross-panel consistency.</p>
         </div>
         <div class="mini-feature">
           <h3>Resumable + Fault-Tolerant</h3>
@@ -927,8 +920,8 @@
   </section>
 
   <footer class="wrap">
-    <p>Inkstone — open-source novel → comic generator · MIT License · <a href="https://github.com/phaethix/inkstone">GitHub</a></p>
-    <p style="margin-top:6px;opacity:.55;">Powered by the free Agnes multimodal API. No GPU, no paid key.</p>
+    <p>© 2026 伍六柒爱电校园 · sorvflow. All rights reserved.</p>
+    <p style="margin-top:6px;opacity:.55;">Turn stories into comics.</p>
   </footer>
 
   <div class="lightbox" id="lightbox" onclick="if(event.target===this) closeLightbox()">
@@ -937,6 +930,8 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="locales/zh-CN.js"></script>
+  <script src="i18n.js"></script>
   <script>
     // Network binds require INKSTONE_UI_TOKEN. The page never embeds it.
     // A correct header arms a SameSite cookie so later <img> reads of /files work.
@@ -955,7 +950,7 @@
       window.fetch = async function (input, init) {
         const res = await _fetch(input, withToken(init));
         if (res.status !== 401) return res;
-        const entered = window.prompt("Enter the Inkstone UI token (INKSTONE_UI_TOKEN)");
+        const entered = window.prompt(window.InkstoneI18n.translate("Enter the sorvflow UI token (INKSTONE_UI_TOKEN)"));
         if (!entered) return res;
         try { sessionStorage.setItem("inkstone_ui_token", entered.trim()); } catch (e) { return res; }
         return _fetch(input, withToken(init));

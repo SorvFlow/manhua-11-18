@@ -56,4 +56,4 @@ addopts = "-q"
 
 [tool.setuptools.package-data]
 "core.harness" = ["data/*.json", "data/common/*.md", "data/stages/*.md", "data/genres/*.md"]
-"web" = ["index.html"]
+"web" = ["index.html", "i18n.js", "locales/*.js"]
