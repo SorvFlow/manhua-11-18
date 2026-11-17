@@ -24,6 +24,10 @@ except ImportError:  # pragma: no cover - exercised only outside Windows
     msvcrt = None
 
 
+class LockBusyError(RuntimeError):
+    """A non-blocking file lock is held by another operation."""
+
+
 @contextmanager
 def exclusive_lock(
     path: str | Path,
@@ -44,7 +48,7 @@ def exclusive_lock(
             try:
                 fcntl.flock(handle.fileno(), flags)
             except BlockingIOError as exc:
-                raise RuntimeError(busy_message or f"lock is busy: {lock_path}") from exc
+                raise LockBusyError(busy_message or f"lock is busy: {lock_path}") from exc
         elif msvcrt is not None:  # pragma: no cover - exercised only on Windows
             handle.seek(0)
             handle.write("0")
@@ -54,7 +58,7 @@ def exclusive_lock(
             try:
                 msvcrt.locking(handle.fileno(), mode, 1)
             except OSError as exc:
-                raise RuntimeError(busy_message or f"lock is busy: {lock_path}") from exc
+                raise LockBusyError(busy_message or f"lock is busy: {lock_path}") from exc
         try:
             yield
         finally:

@@ -131,13 +131,17 @@ Run `uv run inkstone <command> --help` for the full flag list of any single comm
 
 ### Web UI
 
-`uv run inkstone web` starts the zero-dependency local UI (Tailwind SPA + an
-`http.server` backend — **no new pip package**) around the same pipeline. Paste a
-novel and hit Generate; artifacts land under `comic_out/<project_id>/`.
+This fork starts the account-based FastAPI/Uvicorn UI with `uv run inkstone web`.
+Create the first administrator with `uv run inkstone accounts create-admin --username admin`.
+Projects, task logs and generated files are isolated by account under
+`SORVFLOW_STATE_DIR/users/<user-id>/`. A persisted SQLite queue bounds global and
+per-user active jobs, dispatching each generation in its own process. The comic
+pipeline and standalone `generate` command remain available.
 
-The same `web/index.html` is also deployed to [GitHub Pages](https://phaethix.github.io/inkstone/):
-locally it generates your comic, on the static site it runs in *demo mode* with
-the identical interface.
+Public deployments require an exact HTTPS `SORVFLOW_PUBLIC_URL`. See the
+[BaoTa deployment and upgrade guide](deploy/baota/README.md) and
+[multi-account limits](docs/deployment/multi-user.zh-CN.md). A disconnected HTTP
+frontend now reports a connection error instead of simulating generation.
 
 > **Status:** M1–M4 (provider foundation, comic pipeline, long-form hardening and open-source release) have shipped. See the [Roadmap](docs/ROADMAP.md) for released capability, local prototypes and the approved long-form plan.
 

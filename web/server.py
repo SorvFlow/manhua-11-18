@@ -48,6 +48,7 @@ import threading
 import time
 import uuid
 from contextlib import ExitStack, contextmanager
+from contextvars import ContextVar
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -88,6 +89,23 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = ROOT / "comic_out"
 EXPERIMENTS_DIR = experiments_dir()
+_EXPERIMENT_ROOT: ContextVar[Path | None] = ContextVar("experiment_root", default=None)
+
+
+@contextmanager
+def experiment_scope(root: Path):
+    """Request-local experiment paths; never mutate shared server globals."""
+    token = _EXPERIMENT_ROOT.set(root)
+    try:
+        yield
+    finally:
+        _EXPERIMENT_ROOT.reset(token)
+
+
+def experiment_root() -> Path:
+    return _EXPERIMENT_ROOT.get() or EXPERIMENTS_DIR
+
+
 # Every knob below is resolved by ``core.config``, so it joins ``ALL_ENV_VARS``
 # and the h_env partition test. A bare ``os.environ`` read here would be
 # invisible to both.
@@ -672,8 +690,8 @@ def _project_write_lock(out_dir: Path):
         yield
 
 
-def _load_project_state(project_id: str) -> tuple[Path, ProjectState]:
-    out_dir = _project_dir(project_id)
+def _load_project_state(project_id: str, out_dir: Path | None = None) -> tuple[Path, ProjectState]:
+    out_dir = out_dir if out_dir is not None else _project_dir(project_id)
     state_path = out_dir / "state.json"
     if not state_path.is_file():
         raise FileNotFoundError(f"no state.json for project {project_id}")
@@ -683,11 +701,13 @@ def _load_project_state(project_id: str) -> tuple[Path, ProjectState]:
     return out_dir, state
 
 
-def apply_review(project_id: str, action: str, new_name: str, candidate: str) -> dict:
+def apply_review(
+    project_id: str, action: str, new_name: str, candidate: str, *, out_dir: Path | None = None
+) -> dict:
     """Merge or dismiss an alias suggestion; persist state.json."""
-    out_dir = _project_dir(project_id)
+    out_dir = out_dir if out_dir is not None else _project_dir(project_id)
     with _project_write_lock(out_dir):
-        _, state = _load_project_state(project_id)
+        _, state = _load_project_state(project_id, out_dir)
         ledger = ConsistencyLedger.load_or_rebuild(out_dir / "consistency.json", state)
         if action == "merge":
             try:
@@ -710,6 +730,8 @@ def apply_ledger_confirm(
     project_id: str,
     character: str,
     pages: list[str] | None = None,
+    *,
+    out_dir: Path | None = None,
 ) -> dict:
     """Confirm all or a subset of a continuity review; persist the ledger.
 
@@ -717,9 +739,9 @@ def apply_ledger_confirm(
     page of this character; unknown characters or page keys raise ``ValueError``
     so the handler can answer 400/404 instead of claiming success.
     """
-    out_dir = _project_dir(project_id)
+    out_dir = out_dir if out_dir is not None else _project_dir(project_id)
     with _project_write_lock(out_dir):
-        _, state = _load_project_state(project_id)
+        _, state = _load_project_state(project_id, out_dir)
         ledger = ConsistencyLedger.load_or_rebuild(out_dir / "consistency.json", state)
         if character not in ledger.characters:
             raise KeyError(f"unknown character: {character}")
@@ -743,11 +765,23 @@ def start_regen_job(
     style_guide: str | None = None,
 ) -> tuple[str, str]:
     """Force-regen stale/selected panels and start a background job."""
-    out_dir = _project_dir(project_id)
+    text, target_keys = prepare_regen(project_id, stale=stale, keys=keys)
+    return _start_job(text, fmt, style_guide, project_id=project_id, panel_keys=target_keys)
+
+
+def prepare_regen(
+    project_id: str,
+    *,
+    stale: bool = False,
+    keys: list[str] | None = None,
+    out_dir: Path | None = None,
+) -> tuple[str, list[str]]:
+    """Invalidate selected assets under the project lock; do not start a worker."""
+    out_dir = out_dir if out_dir is not None else _project_dir(project_id)
     # The mutation is locked; the job itself must start after the lock is
     # released, because ``creative_comic`` takes the same lock for its whole run.
     with _project_write_lock(out_dir):
-        _, state = _load_project_state(project_id)
+        _, state = _load_project_state(project_id, out_dir)
         source_path = out_dir / "source.txt"
         if not source_path.is_file():
             raise FileNotFoundError("project has no source.txt; regenerate from scratch")
@@ -775,7 +809,7 @@ def start_regen_job(
         else:
             force_regen_panels(state, target_keys)
         state.save(out_dir / "state.json")
-    return _start_job(text, fmt, style_guide, project_id=project_id, panel_keys=target_keys)
+    return text, target_keys
 
 
 def list_projects() -> list[dict]:
@@ -818,7 +852,7 @@ def validate_experiment_id(experiment_id: str) -> str:
 
 
 def _experiment_dir(experiment_id: str) -> Path:
-    root = EXPERIMENTS_DIR.resolve()
+    root = experiment_root().resolve()
     target = (root / validate_experiment_id(experiment_id)).resolve()
     if target.parent != root:
         raise ValueError(f"experiment escapes {root}")
@@ -841,11 +875,12 @@ def _experiment_selection(path: Path) -> dict | None:
 
 def list_experiments() -> list[dict]:
     """List planning-only A/B experiments; candidate labels stay hidden."""
-    if not EXPERIMENTS_DIR.is_dir():
+    root = experiment_root()
+    if not root.is_dir():
         return []
     out: list[dict] = []
-    for entry in sorted(EXPERIMENTS_DIR.iterdir(), reverse=True):
-        if not entry.is_dir():
+    for entry in sorted(root.iterdir(), reverse=True):
+        if not entry.is_dir() or entry.resolve().parent != root.resolve():
             continue
         try:
             manifest = _experiment_manifest(entry)
@@ -980,7 +1015,7 @@ def pick_experiment_api(experiment_id: str, choice: str, why: str) -> dict:
 
 
 def _sequence_dir(sequence_id: str) -> Path:
-    root = EXPERIMENTS_DIR.resolve()
+    root = experiment_root().resolve()
     target = (root / validate_experiment_id(sequence_id)).resolve()
     if target.parent != root:
         raise ValueError(f"sequence escapes {root}")
@@ -1055,11 +1090,16 @@ def _sequence_summary(sequence_dir: Path) -> dict:
 
 
 def list_sequences() -> list[dict]:
-    if not EXPERIMENTS_DIR.is_dir():
+    root = experiment_root()
+    if not root.is_dir():
         return []
     out: list[dict] = []
-    for entry in sorted(EXPERIMENTS_DIR.iterdir(), reverse=True):
-        if not entry.is_dir() or not (entry / "sequence.json").is_file():
+    for entry in sorted(root.iterdir(), reverse=True):
+        if (
+            not entry.is_dir()
+            or entry.resolve().parent != root.resolve()
+            or not (entry / "sequence.json").is_file()
+        ):
             continue
         try:
             out.append(_sequence_summary(entry))

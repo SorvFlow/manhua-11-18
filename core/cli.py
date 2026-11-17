@@ -78,16 +78,17 @@ def _apply_model_flags(args: argparse.Namespace) -> None:
 
 
 def _run_web(args: argparse.Namespace) -> int:
-    """启动本地 Web UI（复用 web.server.main，零侵入）。"""
+    """启动带应用账号和持久化队列的 Web 服务。"""
     import os
 
     if args.host:
         os.environ["INKSTONE_UI_HOST"] = args.host
     if args.port is not None:
         os.environ["INKSTONE_UI_PORT"] = str(args.port)
-    from web.server import main as server_main
+    from core.config import ui_host, ui_port
+    from web.runtime import run
 
-    server_main()
+    run(host=ui_host(), port=ui_port(), port_end=getattr(args, "port_end", None))
     return 0
 
 
@@ -650,7 +651,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_web.add_argument("--host", default=None, help="Bind host (default 127.0.0.1)")
     p_web.add_argument("--port", type=int, default=None, help="Bind port (default 8000)")
+    p_web.add_argument(
+        "--port-end", type=int, default=None, help="Last candidate port (default start + 50)"
+    )
     _add_model_flags(p_web)
+
+    from web.accounts import configure_parser
+
+    configure_parser(sub.add_parser("accounts", help="Manage website accounts interactively"))
 
     return parser
 
@@ -1782,6 +1790,7 @@ def main() -> None:
         "lesson",
         "experiment",
         "web",
+        "accounts",
         "-h",
         "--help",
     ):
@@ -1831,6 +1840,10 @@ def main() -> None:
         sys.exit(_run_experiment(args))
     elif args.command == "web":
         sys.exit(_run_web(args))
+    elif args.command == "accounts":
+        from web.accounts import run
+
+        sys.exit(run(args))
 
 
 if __name__ == "__main__":

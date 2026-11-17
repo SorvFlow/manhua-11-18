@@ -1,0 +1,29 @@
+[Unit]
+Description=sorvflow web service for BaoTa
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=sorvflow
+Group=sorvflow
+WorkingDirectory=/opt/sorvflow/app
+EnvironmentFile=/etc/sorvflow/sorvflow.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/sorvflow/app/.venv/bin/python /opt/sorvflow/deploy/serve.py --app /opt/sorvflow/app --port-start 8765 --port-end 8815 --runtime-dir /run/sorvflow
+ExecStartPost=+/usr/local/sbin/sorvflow-refresh-proxy
+RuntimeDirectory=sorvflow
+RuntimeDirectoryMode=0755
+UMask=0027
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

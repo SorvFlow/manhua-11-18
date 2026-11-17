@@ -697,6 +697,7 @@
       background: #fbfbfd;
     }
   </style>
+  <link rel="stylesheet" href="accounts.css" />
   <script>
     try {
       const saved = localStorage.getItem("inkstone-theme");
@@ -721,6 +722,7 @@
       <div class="nav-extra">
         <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">☾</button>
         <span id="mode" class="badge" role="status" title="Checking API configuration…">API Status</span>
+        <button id="accountToggle" class="theme-toggle account-toggle" type="button">Sign in</button>
       </div>
     </div>
   </nav>
@@ -937,31 +939,8 @@
 
   <script src="locales/zh-CN.js"></script>
   <script src="i18n.js"></script>
+  <script src="accounts.js"></script>
   <script>
-    // Network binds require INKSTONE_UI_TOKEN. The page never embeds it.
-    // A correct header arms a SameSite cookie so later <img> reads of /files work.
-    (function installUiToken() {
-      const _fetch = window.fetch.bind(window);
-      function withToken(init) {
-        let token = "";
-        try { token = sessionStorage.getItem("inkstone_ui_token") || ""; } catch (e) {}
-        if (!token) return init || {};
-        const next = Object.assign({}, init || {});
-        const headers = new Headers(next.headers || {});
-        headers.set("X-Inkstone-Token", token);
-        next.headers = headers;
-        return next;
-      }
-      window.fetch = async function (input, init) {
-        const res = await _fetch(input, withToken(init));
-        if (res.status !== 401) return res;
-        const entered = window.prompt(window.InkstoneI18n.translate("Enter the sorvflow UI token (INKSTONE_UI_TOKEN)"));
-        if (!entered) return res;
-        try { sessionStorage.setItem("inkstone_ui_token", entered.trim()); } catch (e) { return res; }
-        return _fetch(input, withToken(init));
-      };
-    })();
-
     const $ = (id) => document.getElementById(id);
 
     function currentTheme() {
@@ -1005,7 +984,7 @@
       { msg: "Exporting", pct: 100 },
     ];
 
-    let mode = "demo";
+    let mode = location.protocol === "file:" ? "demo" : "offline";
     let pollTimer = null;
     let timingTimer = null;
     let timingElapsed = 0;
@@ -1015,17 +994,24 @@
     let demoTimer = null;
     let demoAborted = false;
 
-    const ACTIVE_JOB_KEY = "inkstone.activeJob";
+    function activeJobKey() {
+      const user = window.SorvflowAccounts?.user;
+      return user ? "sorvflow.activeJob." + user.id : null;
+    }
 
     function saveActiveJob(partial) {
       const prev = loadActiveJob() || {};
-      localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify({ ...prev, ...partial }));
+      const key = activeJobKey();
+      if (!key) return;
+      const next = { ...prev, ...partial };
+      // Manuscripts and styles remain on the authenticated server, not shared browser storage.
+      try { localStorage.setItem(key, JSON.stringify({ job_id: next.job_id, project_id: next.project_id, format: next.format })); } catch (_) {}
     }
     function loadActiveJob() {
-      try { return JSON.parse(localStorage.getItem(ACTIVE_JOB_KEY) || "null"); }
+      try { const key = activeJobKey(); return key ? JSON.parse(localStorage.getItem(key) || "null") : null; }
       catch { return null; }
     }
-    function clearActiveJob() { localStorage.removeItem(ACTIVE_JOB_KEY); }
+    function clearActiveJob() { const key = activeJobKey(); if (key) localStorage.removeItem(key); }
 
     function setStopVisible(running) {
       const btn = $("stop");
@@ -1321,6 +1307,10 @@
         });
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error || ("HTTP " + res.status));
+        if (payload.job_id) {
+          toast("Sequence task queued. Progress is available in My tasks.");
+          return;
+        }
         openSequence(currentSequenceId);
       } catch (e) {
         toast("Advance failed: " + e.message, "error");
@@ -1482,20 +1472,20 @@
           await restoreActiveJobIfAny();
           return;
         }
-        console.warn("Local backend responded but not OK:", r.status);
+        throw new Error("HTTP " + r.status);
       } catch (e) {
         console.warn("Local backend not reachable:", e);
       }
-      mode = "demo";
+      mode = location.protocol === "file:" ? "demo" : "offline";
       el.textContent = "API Status";
       el.className = "badge demo";
-      el.title = "API service unavailable. Showing the demo.";
+      el.title = "API connection failed. Check the service and reverse proxy authentication.";
       el.setAttribute("aria-label", el.title);
       const loc = window.location.href;
       if (loc.startsWith("file:")) {
         $("modeHint").innerHTML = `Demo mode: open <code>http://127.0.0.1:8000/</code> instead of the local file to use the real generator`;
       } else {
-        $("modeHint").innerHTML = `Demo mode: backend not found at this origin. Run <code>uv run inkstone web</code>, then refresh.`;
+        $("modeHint").textContent = "API connection failed. Check the service and reverse proxy authentication.";
       }
     }
 
@@ -1512,10 +1502,21 @@
 
     async function restoreActiveJobIfAny() {
       if (mode !== "live") return;
+      await window.SorvflowAccounts.ready;
+      if (!window.SorvflowAccounts.user || window.SorvflowAccounts.user.must_change_password) return;
       const saved = loadActiveJob();
       if (!saved || !saved.job_id) return;
 
-      if (saved.text) $("text").value = saved.text;
+      if (saved.project_id) {
+        try {
+          const projectResponse = await fetch("/api/project/" + encodeURIComponent(saved.project_id));
+          if (projectResponse.ok) {
+            const project = await projectResponse.json();
+            $("text").value = project.text || "";
+            $("styleGuide").value = project.style_guide || "";
+          }
+        } catch (_) {}
+      }
       if (saved.format) $("format").value = saved.format;
       if (saved.style_guide != null) $("styleGuide").value = saved.style_guide;
       if (saved.project_id) {
@@ -1556,8 +1557,8 @@
         $("projectId").value = job.project_id;
       }
 
-      if (job.status === "running") {
-        setProgress(jobProgressPct(job), jobStageLabel(job, "…"));
+      if (job.status === "running" || job.status === "queued") {
+        setProgress(jobProgressPct(job), job.status === "queued" ? "Queued · position " + job.queue_position : jobStageLabel(job, "…"));
         startTimingTick();
         setStopVisible(true);
         poll(saved.job_id);
@@ -1565,6 +1566,13 @@
       }
 
       stopTimingTick();
+      if (job.status === "cancelled") {
+        clearActiveJob();
+        setProgress(jobProgressPct(job), "Cancelled");
+        $("go").disabled = false;
+        setStopVisible(false);
+        return;
+      }
       if (job.status === "paused") {
         setProgress(jobProgressPct(job), "Paused");
         render(job);
@@ -1611,7 +1619,18 @@
       return raw;
     }
 
-    function generate() {
+    async function generate() {
+      if (mode === "offline") {
+        await detectMode();
+        if (mode === "offline") return fail("API connection failed. Check the service and reverse proxy authentication.");
+      }
+      if (mode === "live") {
+        await window.SorvflowAccounts.ready;
+        if (!window.SorvflowAccounts.user || window.SorvflowAccounts.user.must_change_password) {
+          window.SorvflowAccounts.open("login");
+          return;
+        }
+      }
       const text = $("text").value.trim();
       const existingPid = $("projectId").value.trim();
       if (mode === "live" && !text && !existingPid) {
@@ -1752,9 +1771,9 @@
         clearError();
         $("log").textContent = (job.log || []).join("\n");
         $("log").scrollTop = $("log").scrollHeight;
-        if (job.status === "running") {
+        if (job.status === "running" || job.status === "queued") {
           const pct = jobProgressPct(job);
-          setProgress(pct, jobStageLabel(job, "…"));
+          setProgress(pct, job.status === "queued" ? "Queued · position " + job.queue_position : jobStageLabel(job, "…"));
           syncTimingFromJob(job);
           if (!timingRunning) startTimingTick();
           return;
@@ -1762,6 +1781,13 @@
         clearInterval(pollTimer);
         syncTimingFromJob(job);
         stopTimingTick();
+        if (job.status === "cancelled") {
+          clearActiveJob();
+          setStopVisible(false);
+          setProgress(jobProgressPct(job), "Cancelled");
+          $("go").disabled = false;
+          return;
+        }
         if (job.project_id) {
           currentProjectId = job.project_id;
           $("projectId").value = currentProjectId;
@@ -2218,6 +2244,41 @@
     $("go").addEventListener("click", generate);
     $("stop").addEventListener("click", stopJob);
     $("mode").addEventListener("click", detectMode);
+    window.addEventListener("sorvflow:signed-in", restoreActiveJobIfAny);
+    window.addEventListener("sorvflow:signed-out", () => {
+      clearInterval(pollTimer);
+      stopTimingTick();
+      clearTimeout(demoTimer);
+      currentJobId = null;
+      currentProjectId = null;
+      currentExperimentId = null;
+      currentSequenceId = null;
+      ["text", "projectId", "styleGuide", "fileInput"].forEach((id) => { $(id).value = ""; });
+      ["log", "projectMeta", "panels", "reviewList", "ledgerList", "skippedList", "experimentList", "experimentDetail", "sequenceList"].forEach((id) => { $(id).textContent = ""; });
+      ["results", "progressWrap", "errorWrap"].forEach((id) => $(id).classList.add("hidden"));
+      ["lightboxImg", "webtoon"].forEach((id) => $(id).removeAttribute("src"));
+      ["pdf", "reader"].forEach((id) => $(id).href = "#");
+      $("webtoonWrap").onclick = null;
+      closeLightbox();
+      setStopVisible(false);
+      $("go").disabled = false;
+    });
+    window.addEventListener("sorvflow:open-job", async (event) => {
+      try {
+        const response = await fetch("/api/job/" + encodeURIComponent(event.detail));
+        const job = await response.json();
+        if (!response.ok) throw new Error(job.error || "Request failed");
+        if (job.kind === "sequence") {
+          showTab("experiment");
+          if (job.sequence_id) openSequence(job.sequence_id);
+          else toast(job.status === "error" ? job.error : "Sequence task queued. Progress is available in My tasks.");
+          return;
+        }
+        clearInterval(pollTimer);
+        saveActiveJob({ job_id: job.job_id, project_id: job.project_id, format: job.format });
+        await restoreActiveJobIfAny();
+      } catch (error) { toast(error.message, "error"); }
+    });
     detectMode();
   </script>
 </body>
