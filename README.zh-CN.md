@@ -2,9 +2,9 @@
 
 sorvflow 由伍六柒爱电校园维护。网站已更新品牌标识、页脚文案，并移除对外的项目与服务商跳转入口；原项目许可与版权声明保留在源码中。
 
-本地源码来自 [phaethix/inkstone](https://github.com/phaethix/inkstone)，保留原项目 MIT 协议和上游远程地址 `origin`。本次基于提交 `c9f3beea13a1367a96fea16bcd0a0d18b2ca0bb6`，在 `feat/zh-cn-ui` 分支添加界面汉化。
+本地源码来自 [phaethix/inkstone](https://github.com/phaethix/inkstone)，保留原项目 MIT 协议和上游远程地址 `upstream`。本次基于提交 `c9f3beea13a1367a96fea16bcd0a0d18b2ca0bb6`，在 `feat/zh-cn-ui` 分支添加界面汉化。
 
-发布仓库为 [SorvFlow/manhua-11-18](https://github.com/SorvFlow/manhua-11-18)，默认分支为 `主要的`。本地远程 `sorvflow` 指向发布仓库，`origin` 继续指向上游，便于跟进更新。
+发布仓库为 [SorvFlow/manhua-11-18](https://github.com/SorvFlow/manhua-11-18)，默认分支为 `主要的`。本地远程 `origin` 指向发布仓库，`upstream` 指向上游，便于 GitHub Desktop 推送及跟进更新。
 
 源码沿用 [MIT 许可](LICENSE)。发布仓库初始化提交中的 Apache 2.0 文本原样保存在 [LICENSE-APACHE](LICENSE-APACHE)，作为初始化文件保留；本次没有将上游源码重新授权。
 
@@ -42,8 +42,8 @@ INKSTONE_UI_PORT=8765 uv run inkstone web
 升级前先提交或备份本地修改，然后在汉化分支合并上游：
 
 ```bash
-git fetch origin
-git merge origin/main
+git fetch upstream
+git merge upstream/main
 ```
 
 合并后检查首页、上传、生成进度、错误提示、审核、导出入口和中英切换；新增文案补到语言包。如果上游重写前端，需要重新适配翻译接入点。此版本没有自动更新机制。
